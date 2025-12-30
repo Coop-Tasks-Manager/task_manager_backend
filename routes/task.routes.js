@@ -134,4 +134,42 @@ router.delete("/:taskId", authMiddleware, async (req, res) => {
   }
 });
 
+
+/**
+ * GET /api/tasks/my
+ * Get all tasks assigned to the logged-in user
+ */
+router.get("/my", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await req.db.query(
+      `
+      SELECT 
+        t.id,
+        t.title,
+        t.description,
+        t.status,
+        t.priority,
+        t.due_date,
+        t.created_at,
+        b.name AS board_name,
+        tm.name AS team_name
+      FROM tasks t
+      JOIN boards b ON t.board_id = b.id
+      JOIN teams tm ON b.team_id = tm.id
+      WHERE t.assigned_to = $1
+      ORDER BY t.due_date ASC
+      `,
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch tasks" });
+  }
+});
+
+
 module.exports = router;

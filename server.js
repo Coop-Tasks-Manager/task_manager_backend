@@ -20,8 +20,11 @@ const teamRoutes = require("./routes/team.routes");
 
 app.use("/api/teams", teamRoutes);
 const boardRoutes = require("./routes/board.routes");
-
 app.use("/api/boards", boardRoutes);
 const taskRoutes = require("./routes/task.routes");
 
+
+app.use("/api/teams", teamRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/boards", require("./routes/board.routes"));
+

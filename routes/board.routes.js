@@ -65,4 +65,37 @@ router.get("/:teamId", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/details/:boardId", authMiddleware, async (req, res) => {
+  try {
+    const { boardId } = req.params;
+    const userId = req.userId;
+
+    const result = await pool.query(
+      `SELECT
+        b.id AS board_id,
+        b.name AS board_name,
+        t.id AS team_id,
+        t.name AS team_name,
+        tm.role
+       FROM boards b
+       JOIN teams t ON b.team_id = t.id
+       JOIN team_members tm ON tm.team_id = t.id
+       WHERE b.id = $1
+         AND tm.user_id = $2`,
+      [boardId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({
+        message: "Access denied or board not found"
+      });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch board details" });
+  }
+});
+
 module.exports = router;
