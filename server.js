@@ -5,7 +5,17 @@ const cors = require("cors");
 
 const app = express();
 
-app.use(cors());
+//app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://your-frontend.onrender.com",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 const authRoutes = require("./routes/auth.routes");
