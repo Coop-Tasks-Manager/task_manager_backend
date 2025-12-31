@@ -10,7 +10,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend.onrender.com",
+      "https://task-manager-front-end-zwkw.onrender.com",
     ],
     credentials: true,
   })
