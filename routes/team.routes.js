@@ -40,12 +40,32 @@ router.post("/", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const teams = await pool.query(
-      `SELECT t.*
+      `SELECT
+        t.id,
+        t.name,
+        t.leader_id,
+        t.created_at,
+        tm.role AS my_role
        FROM teams t
-       JOIN team_members tm ON t.id = tm.team_id
+       JOIN team_members tm ON tm.team_id = t.id
        WHERE tm.user_id = $1`,
       [req.userId]
     );
+
+    // const result = await pool.query(
+    //   `SELECT
+    //     t.id,
+    //     t.name,
+    //     t.leader_id,
+    //     t.created_at,
+    //     tm.role AS my_role
+    //    FROM teams t
+    //    JOIN team_members tm ON tm.team_id = t.id
+    //    WHERE t.id = $1
+    //      AND tm.user_id = $2`,
+    //   [teamId, userId]
+    // );
+
 
     res.json(teams.rows);
   } catch (err) {
@@ -90,7 +110,7 @@ router.post("/:teamId/members", authMiddleware, async (req, res) => {
 
     const userId = userRes.rows[0].id;
 
-    /* 3️⃣ Check if user already belongs to team */
+    /*Check if user already belongs to team */
     const existsCheck = await pool.query(
       `SELECT 1 FROM team_members
        WHERE user_id = $1 AND team_id = $2`,
@@ -126,7 +146,7 @@ router.get("/:teamId/members", authMiddleware, async (req, res) => {
     const { teamId } = req.params;
     const userId = req.userId;
 
-    /* 1️⃣ Check if requester belongs to the team */
+    /* heck if requester belongs to the team */
     const accessCheck = await pool.query(
       `SELECT role FROM team_members
        WHERE team_id = $1 AND user_id = $2`,

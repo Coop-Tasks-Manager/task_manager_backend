@@ -60,7 +60,19 @@ router.get("/:boardId", authMiddleware, async (req, res) => {
     }
 
     const tasks = await pool.query(
-      `SELECT * FROM tasks WHERE board_id = $1 ORDER BY created_at`,
+      `SELECT
+        t.id,
+        t.title,
+        t.description,
+        t.status,
+        t.priority,
+        t.due_date,
+        t.assigned_to,
+        u.name AS assigned_to_name
+       FROM tasks t
+       LEFT JOIN users u ON t.assigned_to = u.id
+       WHERE t.board_id = $1
+       ORDER BY t.created_at`,
       [boardId]
     );
 
@@ -108,36 +120,55 @@ router.put("/:taskId", authMiddleware, async (req, res) => {
 });
 
 /* DELETE TASK */
-
+/* DELETE TASK – LEADER ONLY */
 router.delete("/:taskId", authMiddleware, async (req, res) => {
   try {
     const { taskId } = req.params;
+    const userId = req.userId;
 
-    const accessCheck = await pool.query(
-      `SELECT tm.user_id
+    /* Find task + team */
+    const taskRes = await pool.query(
+      `SELECT t.id, b.team_id
        FROM tasks t
        JOIN boards b ON t.board_id = b.id
-       JOIN team_members tm ON b.team_id = tm.team_id
-       WHERE t.id = $1 AND tm.user_id = $2`,
-      [taskId, req.userId]
+       WHERE t.id = $1`,
+      [taskId]
     );
 
-    if (accessCheck.rows.length === 0) {
-      return res.status(403).json({ message: "Access denied" });
+    if (taskRes.rows.length === 0) {
+      return res.status(404).json({ message: "Task not found" });
     }
 
-    await pool.query(`DELETE FROM tasks WHERE id = $1`, [taskId]);
+    const teamId = taskRes.rows[0].team_id;
 
-    res.json({ message: "Task deleted" });
+    /* Check if user is leader */
+    const leaderCheck = await pool.query(
+      `SELECT 1 FROM team_members
+       WHERE team_id = $1 AND user_id = $2 AND role = 'leader'`,
+      [teamId, userId]
+    );
+
+    if (leaderCheck.rows.length === 0) {
+      return res.status(403).json({
+        message: "Only team leader can delete tasks"
+      });
+    }
+
+    /*delete task */
+    await pool.query(
+      `DELETE FROM tasks WHERE id = $1`,
+      [taskId]
+    );
+
+    res.json({ message: "Task deleted successfully" });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete task" });
   }
 });
 
-
-/**
- * GET /api/tasks/my
- * Get all tasks assigned to the logged-in user
+ /* Get all tasks assigned to the logged-in user
  */
 router.get("/my", authMiddleware, async (req, res) => {
   try {
