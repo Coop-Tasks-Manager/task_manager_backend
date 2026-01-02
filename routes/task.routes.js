@@ -87,7 +87,8 @@ router.get("/:boardId", authMiddleware, async (req, res) => {
 router.put("/:taskId", authMiddleware, async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { status, priority, assigned_to, due_date } = req.body;
+    /* const { status, priority, assigned_to, due_date } = req.body; */
+    const { title, description, status, priority, assigned_to, due_date } = req.body;
 
     const accessCheck = await pool.query(
       `SELECT tm.user_id
@@ -103,6 +104,20 @@ router.put("/:taskId", authMiddleware, async (req, res) => {
     }
 
     const updatedTask = await pool.query(
+        `UPDATE tasks
+        SET title = COALESCE($1, title),
+            description = COALESCE($2, description),
+            status = COALESCE($3, status),
+            priority = COALESCE($4, priority),
+            assigned_to = COALESCE($5, assigned_to),
+            due_date = COALESCE($6, due_date)
+        WHERE id = $7
+        RETURNING *`,
+        [title, description, status, priority, assigned_to, due_date, taskId]
+      );
+
+
+    /* const updatedTask = await pool.query(
       `UPDATE tasks
        SET status = COALESCE($1, status),
            priority = COALESCE($2, priority),
@@ -111,7 +126,7 @@ router.put("/:taskId", authMiddleware, async (req, res) => {
        WHERE id = $5
        RETURNING *`,
       [status, priority, assigned_to, due_date, taskId]
-    );
+    ); */
 
     res.json(updatedTask.rows[0]);
   } catch (err) {

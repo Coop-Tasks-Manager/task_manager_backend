@@ -5,7 +5,6 @@ const cors = require("cors");
 
 const app = express();
 
-//app.use(cors());
 app.use(
   cors({
     origin: [
@@ -33,8 +32,7 @@ const boardRoutes = require("./routes/board.routes");
 app.use("/api/boards", boardRoutes);
 const taskRoutes = require("./routes/task.routes");
 
-
 app.use("/api/teams", teamRoutes);
 app.use("/api/tasks", taskRoutes);
-app.use("/api/boards", require("./routes/board.routes"));
+app.use("/api/boards",  boardRoutes);
 
