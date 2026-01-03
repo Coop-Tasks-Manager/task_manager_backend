@@ -28,3 +28,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/boards", require("./routes/board.routes"));
 
+const userRoutes = require("./routes/user.routes");
+app.use("/api/users", userRoutes);
+
+
