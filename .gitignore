@@ -5,6 +5,7 @@
 #Cache folder
 .alcache/
 #Symbols folder
+.env
 .alpackages/
 #Snapshots folder
 .snapshots/

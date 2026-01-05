@@ -102,43 +102,47 @@ router.get("/:boardId", authMiddleware, async (req, res) => {
   }
 });
 
+// router.put("/:taskId/v", authMiddleware, async (req, res) => {
+//   try {
+//     const { taskId } = req.params;
+//     const { status, priority, assigned_to, due_date } = req.body;
 
-/*  UPDATE TASK (status, assignment, etc.)*/
+//     // Access check
+//     const accessCheck = await pool.query(
+//       `
+//       SELECT 1
+//       FROM tasks t
+//       JOIN boards b ON t.board_id = b.id
+//       JOIN team_members tm ON b.team_id = tm.team_id
+//       WHERE t.id = $1 AND tm.user_id = $2
+//       `,
+//       [taskId, req.userId]
+//     );
 
-router.put("/:taskId/v", authMiddleware, async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { status, priority, assigned_to, due_date } = req.body;
+//     if (accessCheck.rows.length === 0) {
+//       return res.status(403).json({ message: "Access denied" });
+//     }
 
-    const accessCheck = await pool.query(
-      `SELECT tm.user_id
-       FROM tasks t
-       JOIN boards b ON t.board_id = b.id
-       JOIN team_members tm ON b.team_id = tm.team_id
-       WHERE t.id = $1 AND tm.user_id = $2`,
-      [taskId, req.userId]
-    );
+//     const updatedTask = await pool.query(
+//       `
+//       UPDATE tasks
+//       SET
+//         status = COALESCE($1, status),
+//         priority = COALESCE($2, priority),
+//         due_date = COALESCE($3, due_date),
+//         assigned_to = $4
+//       WHERE id = $5
+//       RETURNING *
+//       `,
+//       [status, priority, due_date, assigned_to, taskId]
+//     );
 
-    if (accessCheck.rows.length === 0) {
-      return res.status(403).json({ message: "Access denied" });
-    }
+//     res.json(updatedTask.rows[0]);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 
-    const updatedTask = await pool.query(
-      `UPDATE tasks
-       SET status = COALESCE($1, status),
-           priority = COALESCE($2, priority),
-           assigned_to = COALESCE($3, assigned_to),
-           due_date = COALESCE($4, due_date)
-       WHERE id = $5
-       RETURNING *`,
-      [status, priority, assigned_to, due_date, taskId]
-    );
-
-    res.json(updatedTask.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 /* DELETE TASK */
 /* DELETE TASK – LEADER ONLY */
@@ -186,6 +190,46 @@ router.delete("/:taskId", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete task" });
+  }
+});
+
+
+
+router.put("/:taskId/assignees", authMiddleware, async (req, res) => {
+  const { taskId } = req.params;
+  const { userIds } = req.body;
+
+  if (!Array.isArray(userIds)) {
+    return res.status(400).json({ message: "userIds must be an array" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Remove ALL existing assignees
+    await client.query(
+      "DELETE FROM task_assignments WHERE task_id = $1",
+      [taskId]
+    );
+
+    // Insert new ones (if any)
+    for (const userId of userIds) {
+      await client.query(
+        `INSERT INTO task_assignments (task_id, user_id)
+         VALUES ($1, $2)`,
+        [taskId, userId]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Assignees updated" });
+  } catch (err) {
+  await client.query("ROLLBACK");
+  console.error("ASSIGNEE UPDATE ERROR:", err); // 👈 ADD THIS
+  res.status(500).json({ error: err.message });
+}finally {
+    client.release();
   }
 });
 
@@ -280,7 +324,7 @@ router.put("/:taskId", authMiddleware, async (req, res) => {
     const { taskId } = req.params;
     const { title, description, status, priority, due_date } = req.body;
 
-    // 1️⃣ Permission check
+    // Permission check
     const check = await pool.query(
       `
       SELECT 
